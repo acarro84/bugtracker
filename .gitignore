@@ -1,0 +1,49 @@
+### IntelliJ IDEA ###
+.idea/
+*.iml
+out/
+*.ipr
+*.iws
+
+### Maven ###
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+### Logs ###
+*.log
+logs/
+*.log.*
+
+### OS Specific ###
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Mac
+.DS_Store
+
+### Spring Boot ###
+# Exclude application.properties if it contains secrets.
+# If you want developers to have a template, rename it to application-example.properties
+application.properties
+
+### Uploaded Files (Your App) ###
+uploads/
+reports/
+
+### Environment Files ###
+*.env
+
+### Java ###
+*.class
+
+### Backup files ###
+*.swp
+*.swo
+*~

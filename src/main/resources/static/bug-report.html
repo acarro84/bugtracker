@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iWorks Bug Report Form</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f6f8;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+    }
+    .container {
+        width: 100%;
+        max-width: 650px;
+        background: #ffffff;
+        margin-top: 40px;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .logo {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .logo img {
+        max-width: 250px;
+        height: auto;
+    }
+    h2 {
+        text-align: center;
+        color: #1f3b64;
+        margin-bottom: 25px;
+    }
+    label {
+        font-weight: bold;
+        display: block;
+        margin-top: 15px;
+        color: #333;
+    }
+    small {
+        color: #777;
+        display: block;
+        margin-top: 3px;
+        font-size: 12px;
+    }
+    input, select, textarea {
+        width: 100%;
+        padding: 10px;
+        margin-top: 6px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    textarea {
+        resize: vertical;
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        background-color: #1f6fba;
+        color: white;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        margin-top: 20px;
+        cursor: pointer;
+        transition: background-color 0.2s ease-in-out;
+    }
+    button:hover {
+        background-color: #155a92;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="logo">
+        <img src="/iWorks_logo_final.jpg" alt="iWorks Corporation Logo">
+    </div>
+    <h2>Bug / Feedback Submission</h2>
+
+    <form action="/api/bug-report" method="post" enctype="multipart/form-data">
+        <label for="name">Your Name</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="example@iworkscorp.com" required>
+        <small>Must be an @iworkscorp.com address</small>
+
+        <label for="role">Role</label>
+        <input type="text" id="role" name="role" placeholder="Tier III, DISS Dev, PM, General, etc." required>
+
+        <label for="browser">Browser</label>
+        <select id="browser" name="browser" required>
+            <option value="">-- Select Browser --</option>
+            <option>Edge</option>
+            <option>Chrome</option>
+            <option>Firefox</option>
+            <option>Safari</option>
+            <option>Other</option>
+        </select>
+
+        <label for="datetime">Date / Time (Optional)</label>
+        <input type="datetime-local" id="datetime" name="datetime">
+
+        <label for="type">Submission Type</label>
+        <select id="type" name="type" required>
+            <option value="">-- Select Type --</option>
+            <option>Bug</option>
+            <option>Feature Request</option>
+            <option>Comment</option>
+        </select>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" maxlength="255" rows="5" placeholder="Describe the issue or request..." required></textarea>
+        <small>Max 255 characters</small>
+
+        <label for="screenshot">Attach Screenshot</label>
+        <input type="file" id="screenshot" name="screenshot" accept="image/*">
+
+        <button type="submit">Submit</button>
+    </form>
+</div>
+</body>
+</html>
