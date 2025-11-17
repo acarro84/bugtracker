@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
-
 @Entity
 @Table(name = "bug_reports")
 public class BugReport {
@@ -47,9 +46,33 @@ public class BugReport {
     @Column(name = "screenshot_path")
     private String screenshotPath;
 
-
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    // --- New resolution-related fields ---
+
+    @Column(name = "resolved", nullable = false)
+    private boolean resolved = false;
+
+    @Size(max = 100)
+    @Column(name = "resolved_by")
+    private String resolvedBy;
+
+    @Size(max = 255)
+    @Column(name = "resolution_description")
+    private String resolutionDescription;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+
+    // --- Lifecycle hooks ---
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+    }
 
     // --- Getters & setters ---
 
@@ -132,5 +155,52 @@ public class BugReport {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-}
 
+    public boolean isResolved() {
+        return resolved;
+    }
+
+    public void setResolved(boolean resolved) {
+        this.resolved = resolved;
+    }
+
+    public String getResolvedBy() {
+        return resolvedBy;
+    }
+
+    public void setResolvedBy(String resolvedBy) {
+        this.resolvedBy = resolvedBy;
+    }
+
+    public String getResolutionDescription() {
+        return resolutionDescription;
+    }
+
+    public void setResolutionDescription(String resolutionDescription) {
+        this.resolutionDescription = resolutionDescription;
+    }
+
+    public LocalDateTime getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) {
+        this.resolvedAt = resolvedAt;
+    }
+
+    // Optional convenience methods (purely for readability)
+
+    public void markResolved(String resolvedBy, String resolutionDescription, LocalDateTime resolvedAt) {
+        this.resolved = true;
+        this.resolvedBy = resolvedBy;
+        this.resolutionDescription = resolutionDescription;
+        this.resolvedAt = resolvedAt;
+    }
+
+    public void markUnresolved() {
+        this.resolved = false;
+        this.resolvedBy = null;
+        this.resolutionDescription = null;
+        this.resolvedAt = null;
+    }
+}

@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>iWorks – Issue Admin / Reports</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        /* ---- Base page layout ---- */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f7fb;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header-logo {
+            height: 48px;
+            margin-right: 16px;
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .header-title span {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* ---- Filters + actions ---- */
+        .filters-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px;
+        }
+
+        .filter-group label {
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #555;
+        }
+
+        .filter-group select,
+        .filter-group input[type="date"] {
+            padding: 6px 8px;
+            font-size: 13px;
+            border: 1px solid #ccd4e3;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 4px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background-color: #2952a3;
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background-color: #e2e6f2;
+            color: #333;
+        }
+
+        .btn-primary:hover {
+            background-color: #214384;
+        }
+
+        .btn-secondary:hover {
+            background-color: #d3d9ec;
+        }
+
+        /* ---- Header actions row (Save / CSV) ---- */
+        .actions-row {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        /* ---- Table ---- */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 6px;
+            border: 1px solid #dde3f1;
+            background-color: #fff;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        thead {
+            background-color: #f0f3fb;
+        }
+
+        th, td {
+            padding: 8px 8px;
+            text-align: left;
+            border-bottom: 1px solid #eef1f7;
+            vertical-align: top;
+        }
+
+        th {
+            font-weight: 600;
+            color: #444;
+            white-space: nowrap;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #fafbff;
+        }
+
+        .col-small {
+            width: 40px;
+            text-align: center;
+        }
+
+        .col-medium {
+            min-width: 100px;
+        }
+
+        .col-wide {
+            min-width: 200px;
+        }
+
+        .resolved-checkbox {
+            display: flex;
+            justify-content: center;
+        }
+
+        .resolved-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .resolved-meta input[type="text"],
+        .resolved-meta textarea {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 4px 6px;
+            font-size: 12px;
+            border: 1px solid #ccd4e3;
+            border-radius: 3px;
+        }
+
+        .resolved-meta textarea {
+            resize: vertical;
+            min-height: 40px;
+        }
+
+        .readonly-text {
+            font-size: 12px;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        .badge-bug {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .badge-feature {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .badge-comment {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+
+        .status-unresolved {
+            color: #b91c1c;
+            font-weight: 600;
+        }
+
+        .status-resolved {
+            color: #15803d;
+            font-weight: 600;
+        }
+
+        /* ---- Pagination ---- */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            font-size: 12px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .pagination button {
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid #ccd4e3;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background-color: #f0f3fb;
+        }
+
+        .pagination-info {
+            color: #555;
+        }
+
+        @media (max-width: 768px) {
+            .filters-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-actions {
+                margin-left: 0;
+            }
+            .actions-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .actions-row .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-container">
+    <div class="card">
+
+        <!-- Header with logo/title -->
+        <div class="header">
+            <!-- Make sure this image exists at src/main/resources/static/images/iworks_logo_final.jpg -->
+            <img src="/iworks_logo_final.jpg" alt="iWorks Logo" class="header-logo">
+            <div class="header-title">
+                <h1>Issue Administration & Reports</h1>
+                <span>Internal bug reports, feature requests, and comments</span>
+            </div>
+        </div>
+
+        <!-- Filter row -->
+        <div class="filters-row">
+            <div class="filter-group">
+                <label for="filterType">Issue Type</label>
+                <select id="filterType" name="filterType">
+                    <option value="All" selected>All types</option>
+                    <option value="Bug">Bug</option>
+                    <option value="Feature Request">Feature Request</option>
+                    <option value="Comment">Comment</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filterResolved">Resolved Status</label>
+                <select id="filterResolved" name="filterResolved">
+                    <option value="all" selected>All</option>
+                    <option value="unresolved">Unresolved only</option>
+                    <option value="resolved">Resolved only</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="filterFromDate">From Date (Submitted)</label>
+                <input type="date" id="filterFromDate" name="filterFromDate">
+            </div>
+
+            <div class="filter-group">
+                <label for="filterToDate">To Date (Submitted)</label>
+                <input type="date" id="filterToDate" name="filterToDate">
+            </div>
+
+            <div class="filter-actions">
+                <button type="button" class="btn btn-secondary" id="clearFiltersBtn">
+                    Clear Filters
+                </button>
+                <button type="button" class="btn btn-primary" id="applyFiltersBtn">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Actions row: Save + CSV -->
+        <div class="actions-row">
+            <button type="button" class="btn btn-secondary" id="downloadCsvBtn">
+                Download CSV
+            </button>
+            <button type="button" class="btn btn-primary" id="saveChangesBtn">
+                Save Changes
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                <tr>
+                    <th class="col-small">Resolved</th>
+                    <th class="col-medium">Type</th>
+                    <th class="col-medium">Submitted At</th>
+                    <th class="col-medium">Name / Email</th>
+                    <th class="col-medium">Role / Browser</th>
+                    <th class="col-wide">Description</th>
+                    <th class="col-wide">Resolution Details</th>
+                </tr>
+                </thead>
+                <tbody id="issuesTableBody">
+                <!-- Filled by JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <div class="pagination-info">
+                <span id="paginationSummary">Showing 0–0 of 0 issues</span>
+            </div>
+            <div class="pagination-controls">
+                <button type="button" id="prevPageBtn" disabled>&laquo; Previous</button>
+                <button type="button" id="nextPageBtn" disabled>Next &raquo;</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- State management ---
+    const state = {
+        page: 0,
+        size: 10,
+        totalPages: 0,
+        totalElements: 0,
+        filters: {
+            type: 'All',
+            resolved: 'all',
+            fromDate: '',
+            toDate: ''
+        },
+        // id -> { id, resolved, resolvedBy, resolutionDescription }
+        dirtyChanges: {}
+    };
+
+    // --- DOM references ---
+    const filterTypeEl = document.getElementById('filterType');
+    const filterResolvedEl = document.getElementById('filterResolved');
+    const filterFromDateEl = document.getElementById('filterFromDate');
+    const filterToDateEl = document.getElementById('filterToDate');
+
+    const issuesTableBody = document.getElementById('issuesTableBody');
+    const paginationSummary = document.getElementById('paginationSummary');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+
+    const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    const saveChangesBtn = document.getElementById('saveChangesBtn');
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+
+    // --- Helpers ---
+
+    function buildQueryParams(pageOverride) {
+        const page = (typeof pageOverride === 'number') ? pageOverride : state.page;
+
+        const params = new URLSearchParams();
+        // filters
+        if (state.filters.type && state.filters.type !== 'All') {
+            params.set('type', state.filters.type);
+        } else {
+            // Let backend treat missing type as "all"
+        }
+        if (state.filters.resolved) {
+            params.set('resolved', state.filters.resolved);
+        }
+        if (state.filters.fromDate) {
+            params.set('fromDate', state.filters.fromDate);
+        }
+        if (state.filters.toDate) {
+            params.set('toDate', state.filters.toDate);
+        }
+        // pagination
+        params.set('page', page.toString());
+        params.set('size', state.size.toString());
+
+        return params.toString();
+    }
+
+    function formatDateTime(value) {
+        if (!value) return '';
+        try {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return value;
+            return d.toLocaleString();
+        } catch (e) {
+            return value;
+        }
+    }
+
+    function createBadge(type) {
+        const span = document.createElement('span');
+        span.classList.add('badge');
+        if (type === 'Bug') {
+            span.classList.add('badge-bug');
+        } else if (type === 'Feature Request') {
+            span.classList.add('badge-feature');
+        } else if (type === 'Comment') {
+            span.classList.add('badge-comment');
+        }
+        span.textContent = type || 'Unknown';
+        return span;
+    }
+
+    function markRowDirty(row) {
+        const id = row.dataset.id;
+        if (!id) return;
+
+        const resolvedCheckbox = row.querySelector('.resolved-checkbox-input');
+        const resolvedByInput = row.querySelector('.resolved-by-input');
+        const resolutionDescriptionInput = row.querySelector('.resolution-description-input');
+
+        const resolved = resolvedCheckbox ? resolvedCheckbox.checked : false;
+        const resolvedBy = resolvedByInput ? resolvedByInput.value.trim() : '';
+        const resolutionDescription = resolutionDescriptionInput ? resolutionDescriptionInput.value.trim() : '';
+
+        state.dirtyChanges[id] = {
+            id: Number(id),
+            resolved: resolved,
+            resolvedBy: resolved ? resolvedBy : null,
+            resolutionDescription: resolved ? resolutionDescription : null
+        };
+
+        row.classList.add('row-dirty'); // purely visual if you want to add CSS later
+    }
+
+    function clearDirtyState() {
+        state.dirtyChanges = {};
+        const rows = issuesTableBody.querySelectorAll('tr');
+        rows.forEach(row => row.classList.remove('row-dirty'));
+    }
+
+    function updatePaginationControls(pageData) {
+        state.page = pageData.number;
+        state.size = pageData.size;
+        state.totalPages = pageData.totalPages;
+        state.totalElements = pageData.totalElements;
+
+        const start = pageData.number * pageData.size + 1;
+        const end = pageData.number * pageData.size + pageData.numberOfElements;
+
+        if (pageData.totalElements === 0) {
+            paginationSummary.textContent = 'Showing 0–0 of 0 issues';
+        } else {
+            paginationSummary.textContent = `Showing ${start}–${end} of ${pageData.totalElements} issues`;
+        }
+
+        prevPageBtn.disabled = pageData.first;
+        nextPageBtn.disabled = pageData.last || pageData.totalPages === 0;
+    }
+
+    function toggleResolutionFieldsVisibility(row, resolved) {
+        const metaContainer = row.querySelector('.resolved-meta');
+        if (!metaContainer) return;
+
+        metaContainer.style.display = resolved ? 'flex' : 'none';
+    }
+
+    // --- Rendering ---
+
+    function renderIssuesTable(pageData) {
+        issuesTableBody.innerHTML = '';
+
+        if (!pageData.content || pageData.content.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 7;
+            td.textContent = 'No issues found for the selected filters.';
+            td.style.textAlign = 'center';
+            td.style.padding = '16px';
+            tr.appendChild(td);
+            issuesTableBody.appendChild(tr);
+            return;
+        }
+
+        pageData.content.forEach(issue => {
+            const tr = document.createElement('tr');
+            tr.dataset.id = issue.id;
+            tr.dataset.originalResolved = issue.resolved ? 'true' : 'false';
+
+            // Resolved checkbox
+            const tdResolved = document.createElement('td');
+            tdResolved.classList.add('col-small');
+            const resolvedWrapper = document.createElement('div');
+            resolvedWrapper.classList.add('resolved-checkbox');
+            const resolvedCheckbox = document.createElement('input');
+            resolvedCheckbox.type = 'checkbox';
+            resolvedCheckbox.classList.add('resolved-checkbox-input');
+            resolvedCheckbox.checked = issue.resolved === true;
+            resolvedWrapper.appendChild(resolvedCheckbox);
+            tdResolved.appendChild(resolvedWrapper);
+
+            // Type
+            const tdType = document.createElement('td');
+            tdType.classList.add('col-medium');
+            tdType.appendChild(createBadge(issue.type));
+
+            // Submitted At (createdAt)
+            const tdSubmitted = document.createElement('td');
+            tdSubmitted.classList.add('col-medium');
+            const createdSpan = document.createElement('div');
+            createdSpan.classList.add('readonly-text');
+            createdSpan.textContent = formatDateTime(issue.createdAt);
+            tdSubmitted.appendChild(createdSpan);
+
+            // Name / Email
+            const tdNameEmail = document.createElement('td');
+            tdNameEmail.classList.add('col-medium');
+            const nameDiv = document.createElement('div');
+            nameDiv.classList.add('readonly-text');
+            nameDiv.textContent = issue.name || '';
+            const emailDiv = document.createElement('div');
+            emailDiv.classList.add('readonly-text');
+            emailDiv.textContent = issue.email || '';
+            tdNameEmail.appendChild(nameDiv);
+            tdNameEmail.appendChild(emailDiv);
+
+            // Role / Browser
+            const tdRoleBrowser = document.createElement('td');
+            tdRoleBrowser.classList.add('col-medium');
+            const roleDiv = document.createElement('div');
+            roleDiv.classList.add('readonly-text');
+            roleDiv.textContent = issue.role || '';
+            const browserDiv = document.createElement('div');
+            browserDiv.classList.add('readonly-text');
+            browserDiv.textContent = issue.browser || '';
+            tdRoleBrowser.appendChild(roleDiv);
+            tdRoleBrowser.appendChild(browserDiv);
+
+            // Description
+            const tdDescription = document.createElement('td');
+            tdDescription.classList.add('col-wide');
+            const descDiv = document.createElement('div');
+            descDiv.classList.add('readonly-text');
+            descDiv.textContent = issue.description || '';
+            tdDescription.appendChild(descDiv);
+
+            // Resolution Details
+            const tdResolution = document.createElement('td');
+            tdResolution.classList.add('col-wide');
+            const metaContainer = document.createElement('div');
+            metaContainer.classList.add('resolved-meta');
+
+            const resolvedByLabel = document.createElement('label');
+            resolvedByLabel.textContent = 'Resolved By';
+            const resolvedByInput = document.createElement('input');
+            resolvedByInput.type = 'text';
+            resolvedByInput.classList.add('resolved-by-input');
+            resolvedByInput.value = issue.resolvedBy || '';
+
+            const resolutionDescLabel = document.createElement('label');
+            resolutionDescLabel.textContent = 'Resolution Description';
+            const resolutionDescInput = document.createElement('textarea');
+            resolutionDescInput.classList.add('resolution-description-input');
+            resolutionDescInput.value = issue.resolutionDescription || '';
+
+            const resolvedAtDiv = document.createElement('div');
+            resolvedAtDiv.classList.add('readonly-text');
+            if (issue.resolvedAt) {
+                resolvedAtDiv.textContent = 'Resolved at: ' + formatDateTime(issue.resolvedAt);
+            } else {
+                resolvedAtDiv.textContent = '';
+            }
+
+            metaContainer.appendChild(resolvedByLabel);
+            metaContainer.appendChild(resolvedByInput);
+            metaContainer.appendChild(resolutionDescLabel);
+            metaContainer.appendChild(resolutionDescInput);
+            metaContainer.appendChild(resolvedAtDiv);
+
+            tdResolution.appendChild(metaContainer);
+
+            // Hide resolution fields if not resolved
+            toggleResolutionFieldsVisibility(tr, resolvedCheckbox.checked);
+
+            // Attach listeners
+            resolvedCheckbox.addEventListener('change', () => {
+                toggleResolutionFieldsVisibility(tr, resolvedCheckbox.checked);
+                markRowDirty(tr);
+            });
+
+            resolvedByInput.addEventListener('input', () => {
+                markRowDirty(tr);
+            });
+
+            resolutionDescInput.addEventListener('input', () => {
+                markRowDirty(tr);
+            });
+
+            // Append all TDs
+            tr.appendChild(tdResolved);
+            tr.appendChild(tdType);
+            tr.appendChild(tdSubmitted);
+            tr.appendChild(tdNameEmail);
+            tr.appendChild(tdRoleBrowser);
+            tr.appendChild(tdDescription);
+            tr.appendChild(tdResolution);
+
+            issuesTableBody.appendChild(tr);
+        });
+    }
+
+    // --- Data loading ---
+
+    async function loadIssues(pageOverride) {
+        const query = buildQueryParams(pageOverride);
+        try {
+            const response = await fetch(`/api/admin/issues?${query}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load issues: ${response.status}`);
+            }
+            const data = await response.json();
+            renderIssuesTable(data);
+            updatePaginationControls(data);
+            clearDirtyState();
+        } catch (err) {
+            console.error(err);
+            alert('Error loading issues. Check the console for details.');
+        }
+    }
+
+    // --- Event wiring ---
+
+    applyFiltersBtn.addEventListener('click', () => {
+        state.filters.type = filterTypeEl.value;
+        state.filters.resolved = filterResolvedEl.value;
+        state.filters.fromDate = filterFromDateEl.value;
+        state.filters.toDate = filterToDateEl.value;
+        state.page = 0;
+        loadIssues(0);
+    });
+
+    clearFiltersBtn.addEventListener('click', () => {
+        filterTypeEl.value = 'All';
+        filterResolvedEl.value = 'all';
+        filterFromDateEl.value = '';
+        filterToDateEl.value = '';
+
+        state.filters.type = 'All';
+        state.filters.resolved = 'all';
+        state.filters.fromDate = '';
+        state.filters.toDate = '';
+        state.page = 0;
+        loadIssues(0);
+    });
+
+    prevPageBtn.addEventListener('click', () => {
+        if (state.page > 0) {
+            loadIssues(state.page - 1);
+        }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+        if (state.page < state.totalPages - 1) {
+            loadIssues(state.page + 1);
+        }
+    });
+
+    saveChangesBtn.addEventListener('click', async () => {
+        const updates = Object.values(state.dirtyChanges);
+        if (updates.length === 0) {
+            alert('No changes to save.');
+            return;
+        }
+
+        // Check if any updates are unresolving previously resolved issues
+        let hasUnresolve = false;
+        for (const update of updates) {
+            const row = issuesTableBody.querySelector(`tr[data-id="${update.id}"]`);
+            if (!row) continue;
+            const originalResolved = row.dataset.originalResolved === 'true';
+            if (originalResolved && !update.resolved) {
+                hasUnresolve = true;
+                break;
+            }
+        }
+
+        if (hasUnresolve) {
+            const confirmed = window.confirm(
+                'You are marking one or more previously resolved issues as unresolved.\n\n' +
+                'Do you want to continue?'
+            );
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch('/api/admin/issues/bulk-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updates)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to save changes: ${response.status}`);
+            }
+
+            alert('Changes saved successfully.');
+            // Reload current page with current filters
+            loadIssues(state.page);
+        } catch (err) {
+            console.error(err);
+            alert('Error saving changes. Check the console for details.');
+        }
+    });
+
+    downloadCsvBtn.addEventListener('click', () => {
+        const query = buildQueryParams(/* current page irrelevant for export */);
+        // Trigger browser download
+        window.location.href = `/api/admin/issues/export?${query}`;
+    });
+
+    // --- Initial load ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadIssues(0);
+    });
+</script>
+
+</body>
+</html>
