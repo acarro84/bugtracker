@@ -1,6 +1,6 @@
 🐞 iWorks Bug Tracker Application
 
-A lightweight internal web application for iWorks employees to submit:
+A lightweight internal web application for iWorks employees to submit and manage:
 
 Bug reports
 
@@ -8,67 +8,119 @@ Feature requests
 
 General comments
 
-The system supports file uploads, PostgreSQL storage, CSV export, and automated email notifications (optional). Intended for internal use only.
+The system supports file uploads, PostgreSQL persistence, admin reporting tools, CSV export, and (optional) automated email notifications. Intended strictly for internal iWorks use.
 
 📌 Features
-✔ Bug/Feature/Comment submission form
+✔ Employee Submission Form
 
-Employee name
+The bug-report form allows employees to submit:
 
-iworkscorp.com–restricted email
+Name
 
-Role
+iworkscorp.com–restricted email (validated)
+
+Employee role
 
 Browser selection
 
-Optional date/time of event
+Optional event date/time
+
+Report type: Bug, Feature Request, Comment
 
 Description (255 chars max)
 
-Screenshot upload
+Optional screenshot upload
 
-Inline validation
+All fields include inline validation.
+Screenshots are stored in /uploads/.
 
-✔ Backend Services
+✔ Backend Services (Spring Boot)
 
-Spring Boot REST API
+REST API built with Spring Boot 3.x
 
-Stores reports in PostgreSQL
+Data stored in PostgreSQL
 
-Saves uploaded screenshots to /uploads
+Automatic timestamping (created_at)
 
-Appends to a CSV file at /reports/bug_reports.csv
+Screenshot storage (local filesystem)
 
-Timestamped created_at automatically
+CSV export
 
-Email notifications (optional—requires SMTP credentials)
+Optional email notifications (if SMTP credentials provided)
+
+✔ Admin / Reporting Page (New)
+
+A secure internal admin endpoint enables:
+
+🔍 Issue Filtering
+
+By issue type (Bug / Feature Request / Comment / All)
+
+By resolved state (resolved, unresolved, all)
+
+By date range (created_at)
+
+📄 Pagination
+
+10 issues per page
+
+Sorted with:
+
+unresolved issues first (newest to oldest)
+
+resolved issues next (newest to oldest)
+
+✔ Bulk Resolution Updates
+
+Admins can:
+
+Mark issues as resolved/unresolved
+
+Provide:
+
+Resolved By
+
+Resolution Description
+
+Resolution timestamp (resolved_at) saved automatically
+
+Un-resolving an issue:
+
+Clears resolution fields
+
+Prompts the user to confirm (handled in UI)
+
+📤 CSV Export
+
+Exports all filtered issues (ignoring pagination) to downloadable CSV.
 
 🏗 Technology Stack
 Component	Tech
 Backend	Java 17+ (Spring Boot 3.x)
-Build	Maven
 Database	PostgreSQL
-Frontend Form	HTML/CSS/JS served from Spring Boot
-Storage	Local folders (uploads/, reports/)
-Email	Jakarta Mail (SMTP)
+Build	Maven
+UI	Static HTML/CSS/JS served from Spring Boot
+Email	Jakarta Mail (optional)
+Storage	Local filesystem (uploads/, reports/)
 📂 Project Structure
 src/main/java/com/iworks/bugtracker/
-controller/
-model/
-repository/
-service/
-config/
+├── controller/
+├── model/
+├── repository/
+├── service/
+└── config/
 
 src/main/resources/
-static/
-bug-report.html
-css/
-images/
-application.properties (ignored in Git)
-application-example.properties
+├── static/
+│    ├── bug-report.html
+│    ├── admin.html      (future UI)
+│    ├── css/
+│    └── images/
+├── application.properties (ignored in Git)
+└── application-example.properties
 
-uploads/          (generated at runtime)
-reports/          (CSV written here)
+/uploads/   ← stored screenshots  
+/reports/   ← CSV export directory
 
 🚀 Getting Started
 1. Install Required Software
@@ -87,93 +139,106 @@ IntelliJ IDEA (recommended)
 
 3. Create Your Local Config File
 
-Copy the example template:
+Copy the template:
 
 cp src/main/resources/application-example.properties \
 src/main/resources/application.properties
 
 
-Then update:
+Update:
 
 spring.datasource.username=YOUR_DB_USER
 spring.datasource.password=YOUR_DB_PASS
-spring.mail.* (optional)
+
+# Optional email settings
+spring.mail.host=
+spring.mail.username=
+spring.mail.password=
 
 4. Set Up PostgreSQL
-
-Log into PostgreSQL:
-
-psql -U postgres
-
-
-Create the database:
-
-CREATE DATABASE bugtracker;
-
-
-Grant permissions (optional):
-
-GRANT ALL PRIVILEGES ON DATABASE bugtracker TO YOUR_DB_USER;
+   CREATE DATABASE bugtracker;
+   GRANT ALL PRIVILEGES ON DATABASE bugtracker TO YOUR_DB_USER;
 
 5. Start the Application
    mvn spring-boot:run
 
 
-Or from IntelliJ:
-Run → BugtrackerApplication
+Or in IntelliJ → Run BugtrackerApplication
 
-6. Use the Form
+6. Use the Employee Submission Form
 
-Open:
+Navigate to:
 
 http://localhost:8080/bug-report.html
 
 
-Submit a report → it will appear in:
+Reported issues will appear in:
 
 PostgreSQL database
 
-/uploads (any screenshots)
+/uploads/ (screenshots)
 
 /reports/bug_reports.csv
 
+📊 Admin Reporting Tools (New)
+
+Admin API endpoints:
+
+Endpoint	Description
+GET /api/admin/issues	Search/filter/paginate issues
+POST /api/admin/issues/bulk-update	Apply resolution updates
+GET /api/admin/issues/export	CSV export of all matching issues
+
+A future HTML UI (admin.html) will provide a full dashboard.
+
 📧 Email Notifications (Optional)
 
-Email sending is controlled by:
+Configure SMTP:
 
 spring.mail.host=
 spring.mail.username=
 spring.mail.password=
+bugtracker.notification.email=alerts@iworkscorp.com
 
 
-Your IT team must provide SMTP credentials. Once enabled, each submission triggers an email to:
-
-bugtracker.notification.email
+The app will send an email when new reports are submitted.
 
 🔒 Security Notes
 
-This app is intended for internal network use only
+Application intended for internal iWorks network only
 
-Emails must end in @iworkscorp.com
+Email must end with @iworkscorp.com
 
-Do NOT commit real passwords — Git ignores application.properties
+application.properties is Git-ignored — credentials are never committed
 
-Use environment variables or keep credentials local
+For production, environment variables or secrets manager recommended
+
+🧹 Future Enhancements / Roadmap
+🎯 Confirmed Upcoming Features
+
+Full HTML Admin Dashboard
+
+Text search for description & resolution fields
+
+Logical delete / archive functionality
+
+Visualization tools (charts, weekly stats)
+
+Role-based access control for admins
+
+Refined email templates
+
+💡 Possible Enhancements
+
+Docker support
+
+S3 or secure cloud storage for screenshots
+
+Excel (.xlsx) export
+
+API tokens for secure automation
 
 📜 License
 
-Internal iWorks use only. All rights reserved.
-
-👩‍💻 Development Roadmap
-
-Future enhancements may include:
-
-Admin dashboard to view/search reports
-
-Authentication (SSO or company login)
-
-Export to Excel feature
-
-API endpoints for pulling analytics
-
-Docker support
+Internal iWorks use only.
+All rights reserved.
