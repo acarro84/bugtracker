@@ -2,18 +2,19 @@
 
 A lightweight internal web application for iWorks employees to submit and manage:
 
-Bug reports
+Bug Reports
 
-Feature requests
+Feature Requests
 
-General comments
+General Comments
 
-The system supports file uploads, PostgreSQL persistence, admin reporting tools, CSV export, and (optional) automated email notifications. Intended strictly for internal iWorks use.
+The system supports file uploads, PostgreSQL persistence, logical delete/archive, admin reporting tools, CSV export, and optional SMTP email notifications.
+Intended strictly for internal iWorks use.
 
 📌 Features
 ✔ Employee Submission Form
 
-The bug-report form allows employees to submit:
+Allows employees to submit:
 
 Name
 
@@ -25,81 +26,90 @@ Browser selection
 
 Optional event date/time
 
-Report type: Bug, Feature Request, Comment
+Report type (Bug / Feature Request / Comment)
 
 Description (255 chars max)
 
 Optional screenshot upload
 
-All fields include inline validation.
-Screenshots are stored in /uploads/.
+Screenshots are stored in uploads/.
 
 ✔ Backend Services (Spring Boot)
 
-REST API built with Spring Boot 3.x
+Spring Boot 3.x (Java 17)
 
-Data stored in PostgreSQL
+REST API architecture
 
-Automatic timestamping (created_at)
+PostgreSQL persistence
 
-Screenshot storage (local filesystem)
+Automatic timestamps (created_at)
 
-CSV export
+Screenshot storage → local filesystem
 
-Optional email notifications (if SMTP credentials provided)
+CSV export to reports/
 
-✔ Admin / Reporting Page (New)
+Optional email notifications (SMTP)
 
-A secure internal admin endpoint enables:
+✔ Admin Reporting Dashboard
+
+Supports:
 
 🔍 Issue Filtering
 
-By issue type (Bug / Feature Request / Comment / All)
+By type (Bug / Feature Request / Comment / All)
 
-By resolved state (resolved, unresolved, all)
+By resolved state (resolved / unresolved / all)
 
 By date range (created_at)
+
+Ability to view logically deleted items (archive)
 
 📄 Pagination
 
 10 issues per page
 
-Sorted with:
+Sorted by:
 
-unresolved issues first (newest to oldest)
+unresolved first (newest → oldest)
 
-resolved issues next (newest to oldest)
+then resolved (newest → oldest)
 
 ✔ Bulk Resolution Updates
 
-Admins can:
+Admins may:
 
-Mark issues as resolved/unresolved
+Mark resolved/unresolved
 
-Provide:
+Add Resolved By
 
-Resolved By
+Add resolution comments
 
-Resolution Description
+Automatically sets resolved_at
 
-Resolution timestamp (resolved_at) saved automatically
+Un-resolving an issue clears resolution fields
 
-Un-resolving an issue:
+🗄 Logical Delete / Archive
 
-Clears resolution fields
+Only allowed on resolved issues
 
-Prompts the user to confirm (handled in UI)
+Archived records retain:
+
+deleted flag
+
+deleted_at timestamp
+
+Archived items remain available for admin review
 
 📤 CSV Export
 
-Exports all filtered issues (ignoring pagination) to downloadable CSV.
+Exports all issues matching filters (ignores pagination).
 
 🏗 Technology Stack
 Component	Tech
-Backend	Java 17+ (Spring Boot 3.x)
+Backend	Java 17 (Spring Boot 3.x)
 Database	PostgreSQL
 Build	Maven
-UI	Static HTML/CSS/JS served from Spring Boot
+UI	Static HTML/CSS/JS
 Email	Jakarta Mail (optional)
 Storage	Local filesystem (uploads/, reports/)
 📂 Project Structure
@@ -113,16 +123,16 @@ src/main/java/com/iworks/bugtracker/
 src/main/resources/
 ├── static/
 │    ├── bug-report.html
-│    ├── admin.html      (future UI)
+│    ├── admin-reports.html
 │    ├── css/
 │    └── images/
-├── application.properties (ignored in Git)
+├── application.properties (Git-ignored)
 └── application-example.properties
 
-/uploads/   ← stored screenshots  
-/reports/   ← CSV export directory
+/uploads/   <- stored screenshots (local)
+/reports/   <- CSV export directory (local)
 
-🚀 Getting Started
+🚀 Getting Started (Local Development)
 1. Install Required Software
 
 Java 17+
@@ -150,7 +160,7 @@ Update:
 spring.datasource.username=YOUR_DB_USER
 spring.datasource.password=YOUR_DB_PASS
 
-# Optional email settings
+# Optional SMTP
 spring.mail.host=
 spring.mail.username=
 spring.mail.password=
@@ -159,84 +169,172 @@ spring.mail.password=
    CREATE DATABASE bugtracker;
    GRANT ALL PRIVILEGES ON DATABASE bugtracker TO YOUR_DB_USER;
 
-5. Start the Application
-   mvn spring-boot:run
+5. Run the Application
 
+Option A – IntelliJ
+Run BugtrackerApplication.
 
-Or in IntelliJ → Run BugtrackerApplication
+Option B – Maven
 
-6. Use the Employee Submission Form
+mvn spring-boot:run
 
-Navigate to:
+6. Submission Form
 
+Open:
 http://localhost:8080/bug-report.html
 
+Files are saved to:
 
-Reported issues will appear in:
+PostgreSQL DB
 
-PostgreSQL database
-
-/uploads/ (screenshots)
+/uploads
 
 /reports/bug_reports.csv
 
-📊 Admin Reporting Tools (New)
+🐳 Running with Docker (Recommended for Dev/Demo)
 
-Admin API endpoints:
+The project includes:
 
-Endpoint	Description
-GET /api/admin/issues	Search/filter/paginate issues
-POST /api/admin/issues/bulk-update	Apply resolution updates
-GET /api/admin/issues/export	CSV export of all matching issues
+Dockerfile
 
-A future HTML UI (admin.html) will provide a full dashboard.
+docker-compose.yml
 
-📧 Email Notifications (Optional)
+.dockerignore
 
-Configure SMTP:
-
-spring.mail.host=
-spring.mail.username=
-spring.mail.password=
-bugtracker.notification.email=alerts@iworkscorp.com
+1. Build and Run Containers
+   docker compose build
+   docker compose up
 
 
-The app will send an email when new reports are submitted.
+Services:
+
+🐳 bugtracker-app
+
+Spring Boot app
+
+Accessible at http://localhost:8080
+
+🐳 bugtracker-postgres
+
+PostgreSQL 16
+
+Data persisted via named Docker volume
+
+Named Volumes
+
+bugtracker-postgres-data → DB data
+
+bugtracker-uploads → /uploads
+
+bugtracker-reports → /reports
+
+These ensure:
+
+DB persists across restarts
+
+Uploaded screenshots persist
+
+CSV reports persist
+
+2. Stopping Containers
+   docker compose down
+
+
+Remove ALL data (DB + uploads + reports):
+
+docker compose down -v
+
+⚙️ Environment Variables (Docker & Production)
+Env Variable	Description
+SPRING_DATASOURCE_URL	JDBC DB URL
+SPRING_DATASOURCE_USERNAME	DB user
+SPRING_DATASOURCE_PASSWORD	DB password
+BUGTRACKER_UPLOAD_DIR	Screenshot directory
+BUGTRACKER_REPORT_DIR	CSV directory
+SPRING_MAIL_HOST	SMTP server
+SPRING_MAIL_PORT	SMTP port
+SPRING_MAIL_USERNAME	SMTP user
+SPRING_MAIL_PASSWORD	SMTP password
+BUGTRACKER_MAIL_FROM	Email FROM
+BUGTRACKER_MAIL_RECIPIENTS	Notification recipients
+
+🔐 Secrets must not be committed.
+Use environment variables, AWS Secrets Manager, or SSM Parameter Store.
+
+🏢 Deployment to AWS (Overview)
+
+The backend cannot be hosted in an S3 bucket.
+A proper AWS architecture involves:
+
+Compute Options
+
+EC2 running Docker
+
+ECS (Fargate) — best container-native option
+
+Elastic Beanstalk — simplest managed deployment
+
+EKS — use only if Kubernetes is standard internally
+
+Database
+
+Amazon RDS PostgreSQL (recommended)
+
+or Aurora PostgreSQL
+
+Storage
+
+Option A: Docker/EBS volume (current behavior)
+
+Option B (future): Uploads & reports stored in Amazon S3
+
+Code can be upgraded to support this easily
+
+SMTP
+
+Requires outbound access to:
+
+Office 365 SMTP
+or
+
+Internal relay server
 
 🔒 Security Notes
 
-Application intended for internal iWorks network only
+Internal iWorks use only
 
-Email must end with @iworkscorp.com
+Email restricted to @iworkscorp.com
 
-application.properties is Git-ignored — credentials are never committed
+application.properties is Git-ignored
 
-For production, environment variables or secrets manager recommended
+Secrets handled via environment variables
+
+Docker image runs as a non-root user
+
+Logical deletion implemented for safe archival
 
 🧹 Future Enhancements / Roadmap
-🎯 Confirmed Upcoming Features
+🎯 Confirmed Future Enhancements
 
-Full HTML Admin Dashboard
+Text search across description/resolution fields
 
-Text search for description & resolution fields
+Visualization tools (charts, analytics, weekly stats)
 
-Logical delete / archive functionality
+Improved email notification templates
 
-Visualization tools (charts, weekly stats)
+Enhanced admin permissions / role-based access
 
-Role-based access control for admins
-
-Refined email templates
+Multi-file uploads (screenshots + attachments)
 
 💡 Possible Enhancements
 
-Docker support
+Migrate screenshot storage to Amazon S3
 
-S3 or secure cloud storage for screenshots
+Add Excel (.xlsx) export
 
-Excel (.xlsx) export
+Add API tokens for integrations/automation
 
-API tokens for secure automation
+Add system-wide audit logging
 
 📜 License
 
