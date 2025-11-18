@@ -84,6 +84,22 @@
             background-color: #fff;
         }
 
+        .filter-group.checkbox-group {
+            min-width: auto;
+        }
+
+        .filter-group.checkbox-group label {
+            margin-bottom: 0;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-group.checkbox-group input[type="checkbox"] {
+            margin: 0;
+        }
+
         .filter-actions {
             display: flex;
             gap: 8px;
@@ -178,7 +194,8 @@
             min-width: 200px;
         }
 
-        .resolved-checkbox {
+        .resolved-checkbox,
+        .delete-checkbox {
             display: flex;
             justify-content: center;
         }
@@ -239,6 +256,11 @@
         .status-resolved {
             color: #15803d;
             font-weight: 600;
+        }
+
+        /* Row dirty highlight (optional) */
+        tr.row-dirty {
+            background-color: #fff7e6 !important;
         }
 
         /* ---- Pagination ---- */
@@ -303,7 +325,7 @@
 
         <!-- Header with logo/title -->
         <div class="header">
-            <!-- Make sure this image exists at src/main/resources/static/images/iworks_logo_final.jpg -->
+            <!-- Make sure this image exists at src/main/resources/static/iworks_logo_final.jpg or adjust path -->
             <img src="/iworks_logo_final.jpg" alt="iWorks Logo" class="header-logo">
             <div class="header-title">
                 <h1>Issue Administration & Reports</h1>
@@ -342,6 +364,13 @@
                 <input type="date" id="filterToDate" name="filterToDate">
             </div>
 
+            <div class="filter-group checkbox-group">
+                <label>
+                    <input type="checkbox" id="filterDeletedView" name="filterDeletedView">
+                    View deleted issues only
+                </label>
+            </div>
+
             <div class="filter-actions">
                 <button type="button" class="btn btn-secondary" id="clearFiltersBtn">
                     Clear Filters
@@ -368,6 +397,7 @@
                 <thead>
                 <tr>
                     <th class="col-small">Resolved</th>
+                    <th class="col-small">Delete</th>
                     <th class="col-medium">Type</th>
                     <th class="col-medium">Submitted At</th>
                     <th class="col-medium">Name / Email</th>
@@ -407,9 +437,10 @@
             type: 'All',
             resolved: 'all',
             fromDate: '',
-            toDate: ''
+            toDate: '',
+            deletedView: 'active' // 'active' (non-deleted), 'deleted'
         },
-        // id -> { id, resolved, resolvedBy, resolutionDescription }
+        // id -> { id, resolved, resolvedBy, resolutionDescription, deleted }
         dirtyChanges: {}
     };
 
@@ -418,6 +449,7 @@
     const filterResolvedEl = document.getElementById('filterResolved');
     const filterFromDateEl = document.getElementById('filterFromDate');
     const filterToDateEl = document.getElementById('filterToDate');
+    const filterDeletedViewEl = document.getElementById('filterDeletedView');
 
     const issuesTableBody = document.getElementById('issuesTableBody');
     const paginationSummary = document.getElementById('paginationSummary');
@@ -438,8 +470,6 @@
         // filters
         if (state.filters.type && state.filters.type !== 'All') {
             params.set('type', state.filters.type);
-        } else {
-            // Let backend treat missing type as "all"
         }
         if (state.filters.resolved) {
             params.set('resolved', state.filters.resolved);
@@ -450,6 +480,11 @@
         if (state.filters.toDate) {
             params.set('toDate', state.filters.toDate);
         }
+        // deleted view filter:
+        //  - active: show only non-deleted
+        //  - deleted: show only deleted
+        params.set('deletedView', state.filters.deletedView);
+
         // pagination
         params.set('page', page.toString());
         params.set('size', state.size.toString());
@@ -487,10 +522,12 @@
         if (!id) return;
 
         const resolvedCheckbox = row.querySelector('.resolved-checkbox-input');
+        const deleteCheckbox = row.querySelector('.delete-checkbox-input');
         const resolvedByInput = row.querySelector('.resolved-by-input');
         const resolutionDescriptionInput = row.querySelector('.resolution-description-input');
 
         const resolved = resolvedCheckbox ? resolvedCheckbox.checked : false;
+        const deleted = deleteCheckbox ? deleteCheckbox.checked : false;
         const resolvedBy = resolvedByInput ? resolvedByInput.value.trim() : '';
         const resolutionDescription = resolutionDescriptionInput ? resolutionDescriptionInput.value.trim() : '';
 
@@ -498,10 +535,11 @@
             id: Number(id),
             resolved: resolved,
             resolvedBy: resolved ? resolvedBy : null,
-            resolutionDescription: resolved ? resolutionDescription : null
+            resolutionDescription: resolved ? resolutionDescription : null,
+            deleted: deleted
         };
 
-        row.classList.add('row-dirty'); // purely visual if you want to add CSS later
+        row.classList.add('row-dirty'); // purely visual
     }
 
     function clearDirtyState() {
@@ -532,8 +570,24 @@
     function toggleResolutionFieldsVisibility(row, resolved) {
         const metaContainer = row.querySelector('.resolved-meta');
         if (!metaContainer) return;
-
         metaContainer.style.display = resolved ? 'flex' : 'none';
+    }
+
+    function toggleDeleteCheckboxAvailability(row, issue) {
+        const deleteCheckbox = row.querySelector('.delete-checkbox-input');
+        if (!deleteCheckbox) return;
+
+        const originalResolved = row.dataset.originalResolved === 'true';
+
+        // Rule:
+        //  - Only allow deleting issues that were already resolved BEFORE this page load.
+        //  - This means you can't resolve and delete in one batch.
+        if (!originalResolved) {
+            deleteCheckbox.disabled = true;
+            deleteCheckbox.title = 'Issue must be resolved in a prior step before it can be deleted.';
+        } else {
+            deleteCheckbox.disabled = false;
+        }
     }
 
     // --- Rendering ---
@@ -544,7 +598,7 @@
         if (!pageData.content || pageData.content.length === 0) {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
-            td.colSpan = 7;
+            td.colSpan = 8;
             td.textContent = 'No issues found for the selected filters.';
             td.style.textAlign = 'center';
             td.style.padding = '16px';
@@ -557,6 +611,7 @@
             const tr = document.createElement('tr');
             tr.dataset.id = issue.id;
             tr.dataset.originalResolved = issue.resolved ? 'true' : 'false';
+            tr.dataset.originalDeleted = issue.deleted ? 'true' : 'false';
 
             // Resolved checkbox
             const tdResolved = document.createElement('td');
@@ -569,6 +624,18 @@
             resolvedCheckbox.checked = issue.resolved === true;
             resolvedWrapper.appendChild(resolvedCheckbox);
             tdResolved.appendChild(resolvedWrapper);
+
+            // Delete checkbox
+            const tdDelete = document.createElement('td');
+            tdDelete.classList.add('col-small');
+            const deleteWrapper = document.createElement('div');
+            deleteWrapper.classList.add('delete-checkbox');
+            const deleteCheckbox = document.createElement('input');
+            deleteCheckbox.type = 'checkbox';
+            deleteCheckbox.classList.add('delete-checkbox-input');
+            deleteCheckbox.checked = issue.deleted === true;
+            deleteWrapper.appendChild(deleteCheckbox);
+            tdDelete.appendChild(deleteWrapper);
 
             // Type
             const tdType = document.createElement('td');
@@ -653,9 +720,17 @@
             // Hide resolution fields if not resolved
             toggleResolutionFieldsVisibility(tr, resolvedCheckbox.checked);
 
+            // Enable/disable delete checkbox based on original resolved state
+            toggleDeleteCheckboxAvailability(tr, issue);
+
             // Attach listeners
             resolvedCheckbox.addEventListener('change', () => {
                 toggleResolutionFieldsVisibility(tr, resolvedCheckbox.checked);
+                // If user unresolves something that was deleted, clear delete
+                const originalResolved = tr.dataset.originalResolved === 'true';
+                if (!resolvedCheckbox.checked && originalResolved === false) {
+                    // nothing special
+                }
                 markRowDirty(tr);
             });
 
@@ -667,8 +742,23 @@
                 markRowDirty(tr);
             });
 
+            deleteCheckbox.addEventListener('change', () => {
+                const originalResolved = tr.dataset.originalResolved === 'true';
+
+                // Enforce: must have been resolved before this page load
+                if (!originalResolved && deleteCheckbox.checked) {
+                    alert('Issues must be resolved in a prior step before they can be deleted.\n\n' +
+                        'Save the resolution first, then come back to delete if needed.');
+                    deleteCheckbox.checked = false;
+                    return;
+                }
+
+                markRowDirty(tr);
+            });
+
             // Append all TDs
             tr.appendChild(tdResolved);
+            tr.appendChild(tdDelete);
             tr.appendChild(tdType);
             tr.appendChild(tdSubmitted);
             tr.appendChild(tdNameEmail);
@@ -706,6 +796,7 @@
         state.filters.resolved = filterResolvedEl.value;
         state.filters.fromDate = filterFromDateEl.value;
         state.filters.toDate = filterToDateEl.value;
+        state.filters.deletedView = filterDeletedViewEl.checked ? 'deleted' : 'active';
         state.page = 0;
         loadIssues(0);
     });
@@ -715,11 +806,13 @@
         filterResolvedEl.value = 'all';
         filterFromDateEl.value = '';
         filterToDateEl.value = '';
+        filterDeletedViewEl.checked = false;
 
         state.filters.type = 'All';
         state.filters.resolved = 'all';
         state.filters.fromDate = '';
         state.filters.toDate = '';
+        state.filters.deletedView = 'active';
         state.page = 0;
         loadIssues(0);
     });
@@ -741,6 +834,25 @@
         if (updates.length === 0) {
             alert('No changes to save.');
             return;
+        }
+
+        // Validation: if any update deletes an issue, require resolution fields
+        for (const update of updates) {
+            if (update.deleted) {
+                const row = issuesTableBody.querySelector(`tr[data-id="${update.id}"]`);
+                if (!row) continue;
+                const resolvedByInput = row.querySelector('.resolved-by-input');
+                const resolutionDescInput = row.querySelector('.resolution-description-input');
+
+                const resolvedBy = resolvedByInput ? resolvedByInput.value.trim() : '';
+                const resolutionDescription = resolutionDescInput ? resolutionDescInput.value.trim() : '';
+
+                if (!resolvedBy || !resolutionDescription) {
+                    alert('To delete an issue, it must be resolved and must include "Resolved By" and "Resolution Description".\n\n' +
+                        `Issue ID ${update.id} is missing this information.`);
+                    return;
+                }
+            }
         }
 
         // Check if any updates are unresolving previously resolved issues

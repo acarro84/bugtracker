@@ -14,20 +14,65 @@ import java.util.List;
 public interface BugReportRepository extends JpaRepository<BugReport, Long>, JpaSpecificationExecutor<BugReport> {
 
     /**
-     * Search for issues for the admin view with filters and pagination.
+     * Main admin search query.
      *
-     * @param type      Issue type filter: "Bug", "Feature Request", "Comment", or null for all types.
-     * @param resolved  Resolved status filter: true, false, or null for both.
-     * @param fromDate  Filter by createdAt >= fromDate (nullable).
-     * @param toDate    Filter by createdAt <= toDate (nullable).
-     * @param pageable  Pagination information (page number, size).
-     * @return          A page of BugReport entities matching the filters.
+     * Filters:
+     *  - type (Bug / Feature Request / Comment, or null for all)
+     *  - resolved (null = all, true = resolved only, false = unresolved only)
+     *  - createdAt between fromDate/toDate (nullable)
+     *  - includeDeleted: if false, hide logically deleted issues
+     *
+     * Ordering:
+     *  - unresolved first
+     *  - then by createdAt desc
      */
-
+    @Query("""
+        select br
+        from BugReport br
+        where (:type is null or br.type = :type)
+          and (:resolved is null or br.resolved = :resolved)
+          and (:fromDate is null or br.createdAt >= :fromDate)
+          and (:toDate is null or br.createdAt <= :toDate)
+          and (:includeDeleted = true or br.deleted = false)
+        order by case 
+                   when br.resolved = false then 0 
+                   else 1 
+                 end,
+                 br.createdAt desc
+    """)
+    Page<BugReport> searchForAdmin(
+            @Param("type") String type,
+            @Param("resolved") Boolean resolved,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("includeDeleted") boolean includeDeleted,
+            Pageable pageable
+    );
 
     /**
-     * Same filters as searchForAdmin, but returns all results as a list
-     * (used for CSV export; no pagination).
+     * Same filters as searchForAdmin, but returns all rows (no pagination)
+     * for CSV export.
      */
-
+    @Query("""
+        select br
+        from BugReport br
+        where (:type is null or br.type = :type)
+          and (:resolved is null or br.resolved = :resolved)
+          and (:fromDate is null or br.createdAt >= :fromDate)
+          and (:toDate is null or br.createdAt <= :toDate)
+          and (:includeDeleted = true or br.deleted = false)
+        order by case 
+                   when br.resolved = false then 0 
+                   else 1 
+                 end,
+                 br.createdAt desc
+    """)
+    List<BugReport> exportForAdmin(
+            @Param("type") String type,
+            @Param("resolved") Boolean resolved,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("includeDeleted") boolean includeDeleted
+    );
 }
+

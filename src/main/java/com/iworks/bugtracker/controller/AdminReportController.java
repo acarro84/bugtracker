@@ -6,7 +6,6 @@ import com.iworks.bugtracker.service.BugReportService.BulkUpdateRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +29,7 @@ public class AdminReportController {
      * GET /api/admin/issues
      *
      * Returns a page of issues for the admin view,
-     * filtered by type, resolved state, and date range.
+     * filtered by type, resolved state, date range, and deleted state.
      */
     @GetMapping("/issues")
     public Page<BugReport> getIssues(
@@ -40,6 +39,7 @@ public class AdminReportController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(value = "toDate", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(value = "viewDeleted", defaultValue = "false") boolean viewDeleted,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size
     ) {
@@ -49,6 +49,7 @@ public class AdminReportController {
                 resolvedFilter,
                 fromDate,
                 toDate,
+                viewDeleted,
                 page,
                 size
         );
@@ -57,9 +58,13 @@ public class AdminReportController {
     /**
      * POST /api/admin/issues/bulk-update
      *
-     * Applies bulk changes to resolved/unresolved state.
-     * The front-end is responsible for showing a confirmation dialog
-     * before sending unresolve operations.
+     * Applies bulk changes to resolved/unresolved state and logical delete.
+     * The front-end is responsible for:
+     *  - Only allowing delete on already-resolved issues in the UI.
+     *  - Showing confirmation dialogs as needed.
+     *
+     * If an invalid delete is attempted (e.g. delete on unresolved issue),
+     * the service may throw IllegalStateException and we respond with 400.
      */
     @PostMapping("/issues/bulk-update")
     public ResponseEntity<Void> bulkUpdateIssues(
@@ -69,8 +74,13 @@ public class AdminReportController {
             return ResponseEntity.badRequest().build();
         }
 
-        bugReportService.applyBulkResolutionChanges(updates);
-        return ResponseEntity.ok().build();
+        try {
+            bugReportService.applyBulkResolutionChanges(updates);
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException ex) {
+            // Business rule violation (e.g., delete non-resolved issue)
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     /**
@@ -78,6 +88,8 @@ public class AdminReportController {
      *
      * Exports all issues matching the current filters as a CSV file.
      * Pagination is NOT applied here; the full filtered dataset is exported.
+     *
+     * Includes logical delete fields in the export.
      */
     @GetMapping("/issues/export")
     public void exportIssuesAsCsv(
@@ -87,6 +99,7 @@ public class AdminReportController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(value = "toDate", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(value = "viewDeleted", defaultValue = "false") boolean viewDeleted,
             HttpServletResponse response
     ) throws IOException {
 
@@ -96,7 +109,8 @@ public class AdminReportController {
                 type,
                 resolvedFilter,
                 fromDate,
-                toDate
+                toDate,
+                viewDeleted
         );
 
         response.setContentType("text/csv");
@@ -107,8 +121,9 @@ public class AdminReportController {
         );
 
         try (PrintWriter writer = response.getWriter()) {
-            // CSV header
-            writer.println("id,type,name,email,role,browser,description,event_time,created_at,resolved,resolved_by,resolution_description,resolved_at");
+            // CSV header – now includes deleted/deleted_at
+            writer.println("id,type,name,email,role,browser,description,event_time,created_at," +
+                    "resolved,resolved_by,resolution_description,resolved_at,deleted,deleted_at");
 
             for (BugReport b : issues) {
                 writer.println(String.join(",",
@@ -124,7 +139,9 @@ public class AdminReportController {
                         csv(b.isResolved()),
                         csv(b.getResolvedBy()),
                         csv(b.getResolutionDescription()),
-                        csv(b.getResolvedAt())
+                        csv(b.getResolvedAt()),
+                        csv(b.isDeleted()),
+                        csv(b.getDeletedAt())
                 ));
             }
             writer.flush();

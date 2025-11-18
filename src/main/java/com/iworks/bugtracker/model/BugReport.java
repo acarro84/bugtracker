@@ -31,7 +31,6 @@ public class BugReport {
     @Size(max = 50)
     private String browser;
 
-    // Optional – when the user says it happened
     private LocalDateTime eventTime;
 
     @NotBlank
@@ -49,7 +48,7 @@ public class BugReport {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // --- New resolution-related fields ---
+    // --- Resolution-related fields ---
 
     @Column(name = "resolved", nullable = false)
     private boolean resolved = false;
@@ -64,6 +63,15 @@ public class BugReport {
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    // --- NEW logical delete fields ---
+
+    @Column(name = "deleted")
+    private Boolean deleted;   // null or false = not deleted
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
 
     // --- Lifecycle hooks ---
 
@@ -188,7 +196,30 @@ public class BugReport {
         this.resolvedAt = resolvedAt;
     }
 
-    // Optional convenience methods (purely for readability)
+    // --- NEW getters & setters for deleted ---
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    // Optional convenience for UI checks
+    public boolean isDeleted() {
+        return Boolean.TRUE.equals(deleted);
+    }
+
+    // Convenience methods (unchanged)
 
     public void markResolved(String resolvedBy, String resolutionDescription, LocalDateTime resolvedAt) {
         this.resolved = true;

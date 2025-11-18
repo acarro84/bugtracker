@@ -31,6 +31,7 @@ public class BugReportService {
      * @param resolvedFilter null for all, true for resolved only, false for unresolved only.
      * @param fromDate       filter createdAt >= fromDate (nullable).
      * @param toDate         filter createdAt <= toDate (nullable).
+     * @param viewDeleted    false = hide deleted; true = include deleted issues.
      * @param page           0-based page index.
      * @param size           page size (we'll use 10 for the UI, but it's configurable).
      */
@@ -39,6 +40,7 @@ public class BugReportService {
             Boolean resolvedFilter,
             LocalDate fromDate,
             LocalDate toDate,
+            boolean viewDeleted,
             int page,
             int size
     ) {
@@ -46,7 +48,7 @@ public class BugReportService {
         Boolean resolvedParam = resolvedFilter;
 
         LocalDateTime fromDateTime = (fromDate != null) ? fromDate.atStartOfDay() : null;
-        // Inclusive end-of-day (same behavior you had before)
+        // Inclusive end-of-day
         LocalDateTime toDateTime = (toDate != null)
                 ? toDate.plusDays(1).atStartOfDay().minusNanos(1)
                 : null;
@@ -63,7 +65,8 @@ public class BugReportService {
                 typeParam,
                 resolvedParam,
                 fromDateTime,
-                toDateTime
+                toDateTime,
+                viewDeleted
         );
 
         return bugReportRepository.findAll(spec, pageable);
@@ -76,7 +79,8 @@ public class BugReportService {
             String typeFilter,
             Boolean resolvedFilter,
             LocalDate fromDate,
-            LocalDate toDate
+            LocalDate toDate,
+            boolean viewDeleted
     ) {
         String typeParam = normalizeType(typeFilter);
         Boolean resolvedParam = resolvedFilter;
@@ -95,25 +99,30 @@ public class BugReportService {
                 typeParam,
                 resolvedParam,
                 fromDateTime,
-                toDateTime
+                toDateTime,
+                viewDeleted
         );
 
         return bugReportRepository.findAll(spec, sort);
     }
 
     /**
-     * Apply bulk resolution changes coming from the admin UI.
+     * Apply bulk resolution + logical delete changes coming from the admin UI.
      *
-     * The UI will send a list of updates with:
+     * The UI sends a list of updates with:
      *  - id
      *  - resolved
+     *  - delete          (true = logically delete)
      *  - resolvedBy
      *  - resolutionDescription
      *
-     * This method:
-     *  - loads the current entity from DB
-     *  - detects transitions (resolved/unresolved)
-     *  - sets/clears resolved fields correctly
+     * Rules:
+     *  - You can toggle resolved <-> unresolved.
+     *  - When going unresolved, resolution fields are cleared.
+     *  - You can ONLY delete an issue that is already resolved.
+     *  - We do NOT support "undelete" from here (delete=false leaves it as-is).
+     *
+     * If an invalid delete is attempted, we throw IllegalStateException.
      */
     @Transactional
     public void applyBulkResolutionChanges(List<BulkUpdateRequest> updates) {
@@ -132,7 +141,9 @@ public class BugReportService {
             BugReport existing = optional.get();
             boolean wasResolved = existing.isResolved();
             boolean willBeResolved = update.isResolved();
+            boolean deleteRequested = update.isDelete();
 
+            // --- Handle resolved/unresolved first ---
             if (willBeResolved) {
                 // Mark as resolved
                 existing.setResolved(true);
@@ -151,6 +162,19 @@ public class BugReportService {
                 existing.setResolvedAt(null);
             }
 
+            // --- Handle logical delete ---
+            if (deleteRequested) {
+                // Business rule: cannot delete if not resolved
+                if (!existing.isResolved()) {
+                    throw new IllegalStateException("Cannot delete an unresolved issue (id=" + existing.getId() + ")");
+                }
+                // Only mark deleted; we do not "undelete" here
+                if (!existing.isDeleted()) {
+                    existing.setDeleted(true);
+                    existing.setDeletedAt(now);
+                }
+            }
+
             bugReportRepository.save(existing);
         }
     }
@@ -162,7 +186,8 @@ public class BugReportService {
             String typeParam,
             Boolean resolvedParam,
             LocalDateTime fromDateTime,
-            LocalDateTime toDateTime
+            LocalDateTime toDateTime,
+            boolean viewDeleted
     ) {
         Specification<BugReport> spec = Specification.where(null);
 
@@ -184,6 +209,12 @@ public class BugReportService {
         if (toDateTime != null) {
             spec = spec.and((root, query, cb) ->
                     cb.lessThanOrEqualTo(root.get("createdAt"), toDateTime));
+        }
+
+        // Hide deleted by default; include them only if explicitly requested
+        if (!viewDeleted) {
+            spec = spec.and((root, query, cb) ->
+                    cb.isFalse(root.get("deleted")));
         }
 
         return spec;
@@ -209,13 +240,14 @@ public class BugReportService {
     }
 
     /**
-     * DTO used for bulk admin updates of resolution state.
+     * DTO used for bulk admin updates of resolution state and logical delete.
      *
      * The controller will map JSON into this type.
      */
     public static class BulkUpdateRequest {
         private Long id;
         private boolean resolved;
+        private boolean delete; // NEW: request logical delete
         private String resolvedBy;
         private String resolutionDescription;
 
@@ -236,6 +268,14 @@ public class BugReportService {
 
         public void setResolved(boolean resolved) {
             this.resolved = resolved;
+        }
+
+        public boolean isDelete() {
+            return delete;
+        }
+
+        public void setDelete(boolean delete) {
+            this.delete = delete;
         }
 
         public String getResolvedBy() {
