@@ -20,6 +20,7 @@
     </parent>
 
     <properties>
+        <!-- Tell Spring Boot & compiler to use Java 17 -->
         <java.version>17</java.version>
     </properties>
 
@@ -36,26 +37,26 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- Validation annotations (@NotNull, @Email, etc.) -->
+        <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
-        <!-- Email support -->
+        <!-- Email -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!-- PostgreSQL driver (you can swap this later if you prefer another DB) -->
+        <!-- PostgreSQL -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Test (we can leave this as default) -->
+        <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -65,6 +66,7 @@
 
     <build>
         <plugins>
+            <!-- Let Spring Boot handle compiler setup; no explicit maven-compiler-plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

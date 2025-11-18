@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: bugtracker-postgres
+    environment:
+      POSTGRES_DB: bugtracker
+      POSTGRES_USER: bugtracker_user
+      POSTGRES_PASSWORD: BugTrackerPass123!
+    ports:
+      - "5432:5432"
+    volumes:
+      - bugtracker-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bugtracker_user -d bugtracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: bugtracker-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+
+      # Match the values we just used for the DB container
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bugtracker
+      SPRING_DATASOURCE_USERNAME: bugtracker_user
+      SPRING_DATASOURCE_PASSWORD: BugTrackerPass123!
+
+      # Upload / report directories inside the container
+      BUGTRACKER_UPLOAD_DIR: /uploads
+      BUGTRACKER_REPORT_DIR: /reports
+
+      # --- SMTP (can stay commented out for now) ---
+      # SPRING_MAIL_HOST: smtp.office365.com
+      # SPRING_MAIL_PORT: 587
+      # SPRING_MAIL_USERNAME: thewingman@iworkscorp.com
+      # SPRING_MAIL_PASSWORD: your-real-password-here
+      # SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+      # SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+      # BUGTRACKER_MAIL_FROM: bugtracker@iworkscorp.com
+      # BUGTRACKER_MAIL_RECIPIENTS: dev1@iworkscorp.com,dev2@iworkscorp.com
+
+    ports:
+      - "8080:8080"
+    volumes:
+      - bugtracker-uploads:/uploads
+      - bugtracker-reports:/reports
+    restart: unless-stopped
+
+volumes:
+  bugtracker-postgres-data:
+  bugtracker-uploads:
+  bugtracker-reports:

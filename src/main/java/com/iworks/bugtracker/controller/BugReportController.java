@@ -5,6 +5,7 @@ import com.iworks.bugtracker.repository.BugReportRepository;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
@@ -14,10 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -27,21 +25,34 @@ public class BugReportController {
 
     private final BugReportRepository bugReportRepository;
 
-    // where to save uploaded screenshots
-    private final Path uploadDir = Paths.get("uploads");
-
-    // where to store the CSV "spreadsheet"
-    private final Path reportsDir = Paths.get("reports");
-    private final Path csvFile = reportsDir.resolve("bug_reports.csv");
+    // These will be set based on properties bugtracker.upload-dir and bugtracker.report-dir
+    private final Path uploadDir;
+    private final Path reportsDir;
+    private final Path csvFile;
 
     private final DateTimeFormatter dateTimeFormatter =
             DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    public BugReportController(BugReportRepository bugReportRepository) throws IOException {
+    public BugReportController(
+            BugReportRepository bugReportRepository,
+            @Value("${bugtracker.upload-dir}") String uploadDirProperty,
+            @Value("${bugtracker.report-dir}") String reportsDirProperty
+    ) {
         this.bugReportRepository = bugReportRepository;
-        // ensure directories exist
-        Files.createDirectories(uploadDir);
-        Files.createDirectories(reportsDir);
+
+        // Normalize paths (works for both relative and absolute paths)
+        this.uploadDir = Paths.get(uploadDirProperty).toAbsolutePath().normalize();
+        this.reportsDir = Paths.get(reportsDirProperty).toAbsolutePath().normalize();
+        this.csvFile = this.reportsDir.resolve("bug_reports.csv");
+
+        // Ensure directories exist
+        try {
+            Files.createDirectories(this.uploadDir);
+            Files.createDirectories(this.reportsDir);
+        } catch (IOException e) {
+            // Fail fast if we can't prepare storage directories
+            throw new IllegalStateException("Failed to create upload/report directories", e);
+        }
     }
 
     @PostMapping("/bug-report")
@@ -88,9 +99,11 @@ public class BugReportController {
                 String originalFilename =
                         StringUtils.cleanPath(screenshot.getOriginalFilename());
                 String filename = System.currentTimeMillis() + "_" + originalFilename;
-                Path targetPath = uploadDir.resolve(filename);
-                Files.copy(screenshot.getInputStream(), targetPath);
 
+                Path targetPath = uploadDir.resolve(filename);
+                Files.copy(screenshot.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+                // Store the absolute path (or relative, up to you)
                 report.setScreenshotPath(targetPath.toString());
             } catch (IOException e) {
                 return ResponseEntity
