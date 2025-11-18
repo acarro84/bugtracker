@@ -112,7 +112,7 @@ public class BugReportService {
      * The UI sends a list of updates with:
      *  - id
      *  - resolved
-     *  - delete          (true = logically delete)
+     *  - deleted         (true = logically delete)
      *  - resolvedBy
      *  - resolutionDescription
      *
@@ -120,7 +120,7 @@ public class BugReportService {
      *  - You can toggle resolved <-> unresolved.
      *  - When going unresolved, resolution fields are cleared.
      *  - You can ONLY delete an issue that is already resolved.
-     *  - We do NOT support "undelete" from here (delete=false leaves it as-is).
+     *  - We do NOT support "undelete" from here (deleted=false leaves it as-is).
      *
      * If an invalid delete is attempted, we throw IllegalStateException.
      */
@@ -141,7 +141,7 @@ public class BugReportService {
             BugReport existing = optional.get();
             boolean wasResolved = existing.isResolved();
             boolean willBeResolved = update.isResolved();
-            boolean deleteRequested = update.isDelete();
+            boolean deleteRequested = update.isDeleted();
 
             // --- Handle resolved/unresolved first ---
             if (willBeResolved) {
@@ -211,10 +211,14 @@ public class BugReportService {
                     cb.lessThanOrEqualTo(root.get("createdAt"), toDateTime));
         }
 
-        // Hide deleted by default; include them only if explicitly requested
+        // Hide deleted by default; include them only if explicitly requested.
+        // Treat NULL as "not deleted" for backward compatibility.
         if (!viewDeleted) {
             spec = spec.and((root, query, cb) ->
-                    cb.isFalse(root.get("deleted")));
+                    cb.or(
+                            cb.isFalse(root.get("deleted")),
+                            cb.isNull(root.get("deleted"))
+                    ));
         }
 
         return spec;
@@ -247,12 +251,11 @@ public class BugReportService {
     public static class BulkUpdateRequest {
         private Long id;
         private boolean resolved;
-        private boolean delete; // NEW: request logical delete
+        private boolean deleted; // request logical delete
         private String resolvedBy;
         private String resolutionDescription;
 
-        public BulkUpdateRequest() {
-        }
+        public BulkUpdateRequest() {}
 
         public Long getId() {
             return id;
@@ -270,12 +273,12 @@ public class BugReportService {
             this.resolved = resolved;
         }
 
-        public boolean isDelete() {
-            return delete;
+        public boolean isDeleted() {
+            return deleted;
         }
 
-        public void setDelete(boolean delete) {
-            this.delete = delete;
+        public void setDeleted(boolean deleted) {
+            this.deleted = deleted;
         }
 
         public String getResolvedBy() {

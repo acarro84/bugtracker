@@ -22,6 +22,11 @@ public interface BugReportRepository extends JpaRepository<BugReport, Long>, Jpa
      *  - createdAt between fromDate/toDate (nullable)
      *  - includeDeleted: if false, hide logically deleted issues
      *
+     * Semantics:
+     *  - deleted = TRUE  => logically deleted
+     *  - deleted = FALSE => active
+     *  - deleted = NULL  => treated as active (for backward compatibility)
+     *
      * Ordering:
      *  - unresolved first
      *  - then by createdAt desc
@@ -33,7 +38,7 @@ public interface BugReportRepository extends JpaRepository<BugReport, Long>, Jpa
           and (:resolved is null or br.resolved = :resolved)
           and (:fromDate is null or br.createdAt >= :fromDate)
           and (:toDate is null or br.createdAt <= :toDate)
-          and (:includeDeleted = true or br.deleted = false)
+          and (:includeDeleted = true or coalesce(br.deleted, false) = false)
         order by case 
                    when br.resolved = false then 0 
                    else 1 
@@ -60,7 +65,7 @@ public interface BugReportRepository extends JpaRepository<BugReport, Long>, Jpa
           and (:resolved is null or br.resolved = :resolved)
           and (:fromDate is null or br.createdAt >= :fromDate)
           and (:toDate is null or br.createdAt <= :toDate)
-          and (:includeDeleted = true or br.deleted = false)
+          and (:includeDeleted = true or coalesce(br.deleted, false) = false)
         order by case 
                    when br.resolved = false then 0 
                    else 1 
@@ -75,4 +80,3 @@ public interface BugReportRepository extends JpaRepository<BugReport, Long>, Jpa
             @Param("includeDeleted") boolean includeDeleted
     );
 }
-

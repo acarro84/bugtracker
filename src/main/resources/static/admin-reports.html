@@ -438,7 +438,8 @@
             resolved: 'all',
             fromDate: '',
             toDate: '',
-            deletedView: 'active' // 'active' (non-deleted), 'deleted'
+            // false = hide deleted (default), true = include deleted
+            viewDeleted: false
         },
         // id -> { id, resolved, resolvedBy, resolutionDescription, deleted }
         dirtyChanges: {}
@@ -480,10 +481,10 @@
         if (state.filters.toDate) {
             params.set('toDate', state.filters.toDate);
         }
-        // deleted view filter:
-        //  - active: show only non-deleted
-        //  - deleted: show only deleted
-        params.set('deletedView', state.filters.deletedView);
+        // deleted filter:
+        //  - viewDeleted=false (default) → hide deleted
+        //  - viewDeleted=true           → include deleted
+        params.set('viewDeleted', state.filters.viewDeleted ? 'true' : 'false');
 
         // pagination
         params.set('page', page.toString());
@@ -578,15 +579,23 @@
         if (!deleteCheckbox) return;
 
         const originalResolved = row.dataset.originalResolved === 'true';
+        const originalDeleted = row.dataset.originalDeleted === 'true';
+
+        // If already deleted, keep it deleted and disable the checkbox (no undelete here)
+        if (originalDeleted) {
+            deleteCheckbox.disabled = true;
+            deleteCheckbox.title = 'This issue has been deleted.';
+            return;
+        }
 
         // Rule:
         //  - Only allow deleting issues that were already resolved BEFORE this page load.
-        //  - This means you can't resolve and delete in one batch.
         if (!originalResolved) {
             deleteCheckbox.disabled = true;
             deleteCheckbox.title = 'Issue must be resolved in a prior step before it can be deleted.';
         } else {
             deleteCheckbox.disabled = false;
+            deleteCheckbox.title = '';
         }
     }
 
@@ -720,17 +729,12 @@
             // Hide resolution fields if not resolved
             toggleResolutionFieldsVisibility(tr, resolvedCheckbox.checked);
 
-            // Enable/disable delete checkbox based on original resolved state
+            // Enable/disable delete checkbox based on original resolved/deleted state
             toggleDeleteCheckboxAvailability(tr, issue);
 
             // Attach listeners
             resolvedCheckbox.addEventListener('change', () => {
                 toggleResolutionFieldsVisibility(tr, resolvedCheckbox.checked);
-                // If user unresolves something that was deleted, clear delete
-                const originalResolved = tr.dataset.originalResolved === 'true';
-                if (!resolvedCheckbox.checked && originalResolved === false) {
-                    // nothing special
-                }
                 markRowDirty(tr);
             });
 
@@ -796,7 +800,7 @@
         state.filters.resolved = filterResolvedEl.value;
         state.filters.fromDate = filterFromDateEl.value;
         state.filters.toDate = filterToDateEl.value;
-        state.filters.deletedView = filterDeletedViewEl.checked ? 'deleted' : 'active';
+        state.filters.viewDeleted = filterDeletedViewEl.checked;
         state.page = 0;
         loadIssues(0);
     });
@@ -812,7 +816,7 @@
         state.filters.resolved = 'all';
         state.filters.fromDate = '';
         state.filters.toDate = '';
-        state.filters.deletedView = 'active';
+        state.filters.viewDeleted = false;
         state.page = 0;
         loadIssues(0);
     });
@@ -910,6 +914,7 @@
         loadIssues(0);
     });
 </script>
+
 
 </body>
 </html>
